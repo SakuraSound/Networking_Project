@@ -153,22 +153,24 @@ public  class Server {
 	    }else{
 	        parse_args(args);
 	        init();
-	        out.println(27 + " [31;1m" +"*** Server Startup ***" + 27 + " [0m");
+	        out.println("*** Server Startup ***");
 	        while(serving.get()){
 	            DatagramPacket packet;
 	            if((packet = socket.non_blocking_accept()) != null){
 	                Demultiplexor.get_demux(packet).start();
 	            }
 	        }
-	        out.println(27 + " [31;1m"+ "*** Waiting for tasks to complete ***" + 27 +" [0m");
+	        out.println("*** Waiting for tasks to complete ***");
 	        while(!open_record_stores.isEmpty());
-	        out.println(27 + " [31;1m" +"*** Server Shutdown ***" + 27 + " [0m");
+	        out.println("*** Server Shutdown ***");
 	        System.exit(0);
 	    }
 		
 		
 	}
-	
+	/**
+	 *Responsible for passing received messages to the proper locations 
+	 */
 	private static final class Demultiplexor extends Thread{
 	    private DatagramPacket packet;
 	    
@@ -182,9 +184,9 @@ public  class Server {
 	    
 	    public void run(){
             try {
-                is_test(packet);
-                is_work(packet);
-                is_kill(packet);
+                if(is_test(packet)) return; // Test if it is a test message
+                if(is_work(packet)) return; // Test if it is a read/write/delete message
+                if(is_kill(packet)) return; // Test if it is a kill message
             } catch (IOException e) { e.printStackTrace(); } 
 	    }
 	}
