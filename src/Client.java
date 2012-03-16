@@ -36,7 +36,6 @@ import data.SearchQuery;
 
 public class Client {
     
-    
     private static boolean running;
     private static SpecialSocket socket;
     
@@ -71,6 +70,7 @@ public class Client {
         new Scanner(System.in).nextLine();
     }
     
+    //TODO: Add register and unregister commands to the system
     private static void menu(){
         out.println();
         out.println("___________________________________________");
