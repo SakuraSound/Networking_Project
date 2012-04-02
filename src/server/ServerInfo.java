@@ -125,9 +125,7 @@ public final class ServerInfo extends AbstractRecord {
 		else{
 			ServerInfo rec = (ServerInfo) record;
 			return name.equals(rec.get_name())
-					&& ip_addr.equals(rec.get_ip())
-						&& registered_ip.equals(rec.get_registered_server_ip())
-							&& server_name.equals(rec.get_registered_server_name());
+					&& ip_addr.equals(rec.get_ip());
 		}
 	}
 		

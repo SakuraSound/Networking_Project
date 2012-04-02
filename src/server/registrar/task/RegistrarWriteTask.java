@@ -28,7 +28,8 @@ public final class RegistrarWriteTask extends AbstractWriteTask<ServerInfo> {
 	}
 	
 	protected void run_task(ServerInfo info) {
-		store.add_record(info); 
+		store.add_record(info);
+		
 		try{
 			for(Record link : links){
 				String uuid = UUID.randomUUID().toString();

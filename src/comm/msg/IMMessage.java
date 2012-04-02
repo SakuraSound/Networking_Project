@@ -27,5 +27,7 @@ public final class IMMessage extends AbstractMessage {
 		this.uuid = uuid;
 	}
 	
+	private IMMessage(){}
+	
 	
 }

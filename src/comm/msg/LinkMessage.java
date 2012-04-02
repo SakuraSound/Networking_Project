@@ -1,8 +1,14 @@
 package comm.msg;
 
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
+
 import server.job.Job;
 
+
+@XmlRootElement(name="link_message")
 public final class LinkMessage extends AbstractMessage {
+	@XmlElement(name="server_name")
 	private String server_name;
 	
 	public String get_server_name(){ return server_name; }
@@ -15,4 +21,6 @@ public final class LinkMessage extends AbstractMessage {
 		super(type, priority);
 		this.server_name = server_name;
 	}
+	
+	private LinkMessage(){}
 }

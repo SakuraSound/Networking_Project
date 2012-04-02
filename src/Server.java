@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.Scanner;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,6 +47,7 @@ import comm.msg.UpdateMessage;
 import comm.msg.WriteMessage;
 import comm.resp.ErrorMessage;
 import comm.resp.GenericResponse;
+import comm.resp.ReadListMessage;
 
 import data.record.InvalidRecordException;
 import data.record.Record;
@@ -74,13 +74,15 @@ public  class Server {
      */
     private static final void init() throws IOException, InvalidRecordException{
     	FileUtils.forceMkdir(new File("../data/"));
-        
+        name = configuration.get("port_num");
+        open_record_stores = new ConcurrentHashMap<String, RecordStore>();
         client_lists = new ConcurrentHashMap<Record, ClientRegistrar>();
         update_filter = BloomFilter.create_filter(150000, 600000);
         message_filter = BloomFilter.create_filter(300000, 1000000);
         links = new ArrayList<Record>();
         serving = new AtomicBoolean(true);
         socket = SpecialSocket.create_socket(Integer.valueOf(configuration.get("port_num")));
+        out.println(configuration.get("port_num"));
         self = Record.create_record(UUID.randomUUID().toString(), socket.get_inet().getHostAddress(), socket.get_port());
     }
     
@@ -120,36 +122,52 @@ public  class Server {
         }
     }
     
+    private static void test_and_open_list() throws IOException{
+    	if(!client_lists.containsKey(self)){
+    		ClientRegistrar reg = ClientRegistrar.create_registrar(self.get_name());
+    		reg.start();
+    		client_lists.put(self, reg);
+    	}
+    }
+    
+    private static void test_and_open_list(Record record) throws IOException{
+    	if(!client_lists.containsKey(record)){
+    		ClientRegistrar reg = ClientRegistrar.create_registrar(record.get_name());
+    		reg.start();
+    		client_lists.put(record, reg);
+    	}
+    }
+    
     private static boolean is_read(DatagramPacket packet) throws IOException{
         try{
             ReadMessage msg = (ReadMessage) CommUtilities.bytes_2_java(packet.getData(), ReadMessage.class);
             // Check to see if accessing temp store
-            String name = msg.get_store() == null? "TempDB": msg.get_store();
             test_and_open_store();
             open_record_stores.get(name).add_job(SearchJob.spawn(Job.READ, msg.get_query(), msg.get_priority(), packet.getAddress(), packet.getPort()));
             return true;
         }catch(JAXBException jaxbe){return false;}
+         catch(ClassCastException cce){ return false; }
     }
     
     private static boolean is_write(DatagramPacket packet) throws IOException{
         try{
             WriteMessage<Record> msg = (WriteMessage<Record>) CommUtilities.bytes_2_java(packet.getData(), WriteMessage.class);
-            String name = msg.get_store() == null? "TempDB": msg.get_store();
             test_and_open_store();
             open_record_stores.get(name).add_job(WriteJob.spawn(Job.WRITE, msg.get_record(), msg.get_priority(), packet.getAddress(), packet.getPort()));
             return true;
         }catch(JAXBException jaxbe){ return false; }
+         catch(ClassCastException cce){ return false; }
     }
     
     private static boolean is_delete(DatagramPacket packet) throws IOException{
         try{
             DeleteMessage msg = (DeleteMessage) CommUtilities.bytes_2_java(packet.getData(), DeleteMessage.class);
             // Check to see if accessing temp store
-            String name = msg.get_store() == null? "TempDB": msg.get_store();
             test_and_open_store();
             open_record_stores.get(name).add_job(SearchJob.spawn(Job.DELETE, msg.get_query(), msg.get_priority(), packet.getAddress(), packet.getPort()));
             return true;
         }catch(JAXBException jaxbe){return false;}
+         catch(ClassCastException cce){ return false; }
     }
     
     private static boolean is_work(DatagramPacket packet) throws IOException{
@@ -159,10 +177,12 @@ public  class Server {
     
     protected static boolean is_test(DatagramPacket packet) throws IOException{
         try{
+        	out.println("Test Message received");
             TestMessage msg = (TestMessage) CommUtilities.bytes_2_java(packet.getData(), TestMessage.class);
-            socket.send(msg, packet.getAddress(), packet.getPort());
+            socket.send(GenericResponse.create_response("ping"), packet.getAddress(), packet.getPort());
             return true;
         }catch(JAXBException jaxbe){ return false; }
+         catch(ClassCastException cce){ return false; }
     }
     
     protected static boolean is_kill(DatagramPacket packet) throws IOException{
@@ -173,6 +193,7 @@ public  class Server {
             open_record_stores.remove(name);
             return true;
         }catch(JAXBException jaxbe){ return false; }
+         catch(ClassCastException cce){ return false; }
     }
     
     public static boolean is_update(DatagramPacket packet) throws IOException{
@@ -191,6 +212,7 @@ public  class Server {
     		return true;
     		
     	}catch(JAXBException jaxbe){ return false; }
+    	 catch(ClassCastException cce){ return false; }
     }
     
     public static boolean is_linkage(DatagramPacket packet) throws IOException{
@@ -205,6 +227,7 @@ public  class Server {
     						socket.send(ErrorMessage.create_message(ERROR.DUPLICATE_LINK_ERROR), packet.getAddress(), packet.getPort());
     						return true;
     					}else{
+    						test_and_open_list(self);
         					Enumeration<ServerInfo> clients = client_lists.get(self).get_reader();
         					while(clients.hasMoreElements()){
         						ServerInfo client = clients.nextElement();
@@ -221,30 +244,58 @@ public  class Server {
 			socket.send(err, packet.getAddress(), packet.getPort());
     		return true;
     	}catch(JAXBException jaxbe){ return false; }
+    	 catch(ClassCastException cce){ return false; }
     }
     
-    public static boolean is_message(DatagramPacket packet) throws IOException{
+    public static boolean is_message(DatagramPacket packet) throws IOException, InvalidRecordException{
     	try{
     		IMMessage msg = (IMMessage) CommUtilities.bytes_2_java(packet.getData(), IMMessage.class);
     		if(message_filter.not_planted(msg.get_uuid())){
     			IMJob imjob = IMJob.spawn(msg, msg.get_priority());
-    			client_lists.get(msg.get_im().get_name()).add_job(imjob);
-    			socket.send(GenericResponse.create_response("Message Sent"), packet.getAddress(), packet.getPort());
+    			Record reference = Record.recreate_record(msg.get_im().get_server(), msg.get_im().get_ip(), msg.get_im().get_port(), msg.get_im().get_timestamp());
+    			test_and_open_list(reference);
+    			client_lists.get(reference).add_job(imjob);
+    			try{
+    				socket.send(GenericResponse.create_response("Message Sent"), packet.getAddress(), packet.getPort());
+    			}catch(JAXBException jaxbe) { 
+    				jaxbe.printStackTrace(); 
+    			}
     		}
     		return true;
     	}catch(JAXBException jaxbe){ return false; }
+    	 catch(ClassCastException cce){ return false; }
     }
 
     
+    public static boolean view_links(DatagramPacket packet) throws IOException{
+    	
+    	try{
+    		LinkMessage msg = (LinkMessage) CommUtilities.bytes_2_java(packet.getData(), LinkMessage.class);
+    		if(msg.get_job() != Job.VIEW_LINK) return false;
+    		else{
+    			ReadListMessage<Record> msg2 = ReadListMessage.create_message(links);
+    			try {
+					socket.send(msg2, packet.getAddress(), packet.getPort());
+				} catch (JAXBException e) { 
+					e.printStackTrace(); 
+				}
+    			return true;
+    		}
+    	}catch(ClassCastException cce){ return false; }
+    	 catch(JAXBException jaxbe){ return false; }
+    }
+    
     public static boolean is_registrar(DatagramPacket packet) throws IOException{
     	try{
-    		RegisterMessage msg = (RegisterMessage) CommUtilities.bytes_2_java(packet.getData(), LinkMessage.class);
+    		RegisterMessage msg = (RegisterMessage) CommUtilities.bytes_2_java(packet.getData(), RegisterMessage.class);
     		AbstractJob job = msg.get_job() == Job.REGISTER ?
-    							WriteJob.spawn(msg.get_job(), msg.get_client(), msg.get_priority(), packet.getAddress(), packet.getPort()):
-    							SearchJob.spawn(msg.get_job(), msg.get_query(), msg.get_priority(), packet.getAddress(), packet.getPort());
+    							WriteJob.spawn(msg.get_job(), msg.get_client(), msg.get_priority(), packet.getAddress(), packet.getPort(), self, links):
+    							SearchJob.spawn(msg.get_job(), msg.get_query(), msg.get_priority(), packet.getAddress(), packet.getPort(), self,  links);
+    		test_and_open_list();
     		client_lists.get(self).add_job(job);
     		return true;
     	}catch(JAXBException jaxbe){ return false; }
+    	 catch(ClassCastException cce){ return false; }
     }
     
 
@@ -266,7 +317,6 @@ public  class Server {
 	    if (args.length != 1){
 	        out.println("Commands are Server <port_num>  or Server <config-file>");
 	    }else{
-	    	name = UUID.randomUUID().toString();
 	        parse_args(args);
 	        init();
 	        out.println("*** Server Startup ***");
@@ -304,6 +354,7 @@ public  class Server {
 	    
 	    public void run(){
             try {
+            	out.println("New Packet received");
                 if(is_test(packet)) return; // Test if it is a test message
                 if(is_work(packet)) return; // Test if it is a read/write/delete message
                 if(is_kill(packet)) return; // Test if it is a kill message
@@ -313,6 +364,7 @@ public  class Server {
                 if(is_linkage(packet)) return; // Test if it is a linkage message
                 if(is_message(packet)) return; //Test if it is an instant message
             } catch (IOException e) { e.printStackTrace(); } 
+              catch (InvalidRecordException e) { e.printStackTrace(); } 
 	    }
 	}
 

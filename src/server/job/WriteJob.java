@@ -1,6 +1,7 @@
 package server.job;
 
 import java.net.InetAddress;
+import java.util.ArrayList;
 import java.util.List;
 
 import data.record.AbstractRecord;
@@ -25,6 +26,10 @@ public final class WriteJob<T extends AbstractRecord> extends AbstractJob {
 	
 	public List<Record> get_links(){ return links; }
 	
+	public static <S extends AbstractRecord> WriteJob<S> spawn(final Job type, final S record, final int priority, final InetAddress inet, final int port_num, final Record self, final List<Record> links){
+		return new WriteJob<S>(type, record, priority, inet, port_num, self,  links);
+	}
+	
 	public static <S extends AbstractRecord> WriteJob<S> spawn(final Job type, final S record, final int priority, final InetAddress inet, final int port_num){
 		return new WriteJob<S>(type, record, priority, inet, port_num);
 	}
@@ -33,14 +38,12 @@ public final class WriteJob<T extends AbstractRecord> extends AbstractJob {
 		super(type, priority, inet, port_num);
 		this.record = record;
 		from = null;
-		links = null;
+		links = new ArrayList<Record>();
 	}
 	
 	private WriteJob(final Job type, final T record, final int priority, final InetAddress inet, final int port_num, Record from, List<Record> links){
 		super(type, priority, inet, port_num);
 		this.record = record;
-		from = null;
-		links = null;
 		this.from = from;
 		this.links = links;
 	}

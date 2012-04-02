@@ -30,6 +30,16 @@ Switch - Allows user to switch to a different data store on the same
          server. If no name give, switches to the temporary store on
          the server. If a name is given, allows user to create a new
          data store with the next operation on the server
+Link   - Allows user to link two servers together. (This is based on names
+		 given in the record store using insert).
+Unlink - Allows user to unlink two servers using alias names on server
+Register Allows user to register themself to a server to accept incoming
+         messages
+Unregis - Allows user to unregister themselves, so they cannot accept
+          incoming messages
+Send   - Allows user to send another client a message
+List   - Allows user to see registered users (not fully implemented)
+         Currently uses regex and the server_name (port number right now).
 Kill   - Allows user to kill a data store if name is given, otherwise
          kills all data stores currently running on the server, and then
          shuts down server
@@ -74,6 +84,8 @@ allows for the data to be defined in a way where it is still able
 to function regardless of language. 
 
 comm.msg
+IMMessage
+LinkMessage
 DeleteMessage - Called when deleting a record from a data store
 ReadMessage   - Called for finding messages on a data store
 WriteMessage  - Called for adding a new message to a data store
@@ -99,5 +111,6 @@ durability of the RecordStore, the message passing system, as well as
 each of the tasks. A few multithreaded tests were written too, but due
 to the complexity of these types of tasks, they are somewhat trivial.
 
-Improvement: for the next iteration, I am thinking of switching to
-a more restful setup.
+Improvement: for the next iteration, I need to clean up the clientlist 
+             bug and tune up the updating system... i know there are some
+             bugs to be removed for those two...

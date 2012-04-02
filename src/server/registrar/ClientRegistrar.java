@@ -68,7 +68,7 @@ public class ClientRegistrar extends AbstractStore<ServerInfo>{
 		if(!ret_value){
 			clients.add(info);
 		}
-		register_response(ret_value, info.get_name(), info.get_ip(), info.get_port());
+		register_response(!ret_value, info.get_name(), info.get_ip(), info.get_port());
 		return ret_value;
 	}
 	// ** UNREGISTRATION METHODS **
@@ -80,7 +80,7 @@ public class ClientRegistrar extends AbstractStore<ServerInfo>{
 	}
 	
 	public final synchronized boolean remove_record(final ServerInfo info){
-		boolean ret_value = clients.contains(info.get_name());
+		boolean ret_value = clients.contains(info);
 		if(ret_value)
 			clients.remove(info);
 		unregister_response(ret_value, info.get_name());

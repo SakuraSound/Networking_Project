@@ -15,6 +15,7 @@ public enum Job {
 	@XmlEnumValue("CLIENT_SEARCH")  CLIENT_SEARCH,
 	@XmlEnumValue("LINK")  LINK,
 	@XmlEnumValue("UNLINK")  UNLINK,
+	@XmlEnumValue("VIEW_LINK") VIEW_LINK,
 	@XmlEnumValue("SHUT_DOWN")  SHUT_DOWN,
 	@XmlEnumValue("SEND_MESSAGE")  SEND_MESSAGE,
 	@XmlEnumValue("UPDATE_REGISTER") UPDATE_REGISTER,

@@ -30,23 +30,29 @@ public abstract class  AbstractDeleteTask<T extends AbstractRecord> extends Abst
 	protected T find_document(){
 		Enumeration<T> searcher = store.get_reader();
 		SearchQuery query = ((SearchJob) job).get_query();
-		
+		delete_position= 0;
 		while(searcher.hasMoreElements()){
 			T record = searcher.nextElement();
 			if(filter(query, record)){
+				delete_record = record;
 				return record;
 			}
+			delete_position ++;
         }   
         return null;
 	}
+	
+	protected void run_task(){ }
 	
 	public void run(){
         store.add_self(this);
         System.out.println("Starting delete task");
         Message reply = null;
         try{
+        	find_document();
         	if(store.remove_record(delete_record)){
         		reply = GenericResponse.create_response("Deletion Successful");
+        		run_task();
         	}else{
                 reply = ErrorMessage.create_message(ERROR.RECORD_NOT_FOUND);
             }

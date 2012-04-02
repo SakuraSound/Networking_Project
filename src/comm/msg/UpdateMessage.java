@@ -36,4 +36,6 @@ public class UpdateMessage extends AbstractMessage {
 		this.uuid = uuid == null ? UUID.randomUUID().toString() : uuid;
 	}
 	
+	private UpdateMessage(){ }
+	
 }

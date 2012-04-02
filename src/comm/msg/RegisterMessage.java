@@ -38,4 +38,6 @@ public class RegisterMessage extends AbstractMessage{
 		this.query = query;
 	}
 	
+	private RegisterMessage(){}
+	
 }
